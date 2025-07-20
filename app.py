@@ -185,3 +185,68 @@ def log_upload(filename, file_path, validation_result):
 
     conn.commit()
     conn.close()
+
+
+@app.route("/")
+def index():
+    return render_template("upload.html")
+
+
+@app.route("/upload", methods=["POST"])
+def upload_file():
+    if "file" not in request.files:
+        flash("No file selected", "error")
+        return redirect(request.url)
+
+    file = request.files["file"]
+    if file.filename == "":
+        flash("No file selected", "error")
+        return redirect(request.url)
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        # Add timestamp to filename to avoid conflicts
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"{timestamp}_{filename}"
+        file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+        file.save(file_path)
+
+        # Validate the file structure
+        is_valid, validation_result = validate_excel_structure(file_path)
+
+        if is_valid:
+            # Log the successful upload
+            log_upload(filename, file_path, validation_result)
+            flash("File uploaded and validated successfully!", "success")
+            return render_template(
+                "validation_result.html", filename=filename, result=validation_result
+            )
+        else:
+            # Remove the invalid file
+            os.remove(file_path)
+            flash(f"File validation failed: {validation_result}", "error")
+            return redirect(url_for("index"))
+    else:
+        flash("Invalid file type. Please upload an Excel file (.xlsx or .xls)", "error")
+        return redirect(url_for("index"))
+
+
+@app.route("/logs")
+def view_logs():
+    """View upload logs"""
+    conn = sqlite3.connect("upload_logs.db")
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT * FROM upload_logs ORDER BY upload_timestamp DESC
+    """
+    )
+    logs = cursor.fetchall()
+    conn.close()
+
+    return render_template("logs.html", logs=logs)
+
+
+if __name__ == "__main__":
+    init_db()
+    app.run(debug=True)
