@@ -1,0 +1,105 @@
+{% extends "base.html" %} {% block title %}Upload Excel File{% endblock %} {%
+block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title mb-0">Upload Excel File</h3>
+      </div>
+      <div class="card-body">
+        <p class="text-muted mb-4">
+          Upload an Excel file containing three sheets:
+          <strong>Transactions</strong>, <strong>Customers</strong>, and
+          <strong>Products</strong>. The file will be validated to ensure it
+          contains the expected data structure.
+        </p>
+
+        <form
+          action="{{ url_for('upload_file') }}"
+          method="post"
+          enctype="multipart/form-data"
+        >
+          <div class="upload-area">
+            <div class="mb-3">
+              <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+              <h5>Drop your Excel file here or click to browse</h5>
+              <p class="text-muted">Supports .xlsx and .xls files (max 16MB)</p>
+            </div>
+            <input
+              type="file"
+              class="d-none"
+              id="file"
+              name="file"
+              accept=".xlsx,.xls"
+              required
+            />
+            <div
+              id="file-name"
+              class="mt-2 text-primary"
+              style="display: none"
+            ></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg w-100">
+            Upload and Validate
+          </button>
+        </form>
+
+        <div class="mt-4">
+          <h5>Expected File Structure:</h5>
+          <div class="row">
+            <div class="col-md-4">
+              <div class="card">
+                <div class="card-header bg-primary text-white">
+                  <strong>Transactions Sheet</strong>
+                </div>
+                <div class="card-body">
+                  <ul class="list-unstyled mb-0">
+                    <li>• transaction_id</li>
+                    <li>• customer_id</li>
+                    <li>• transaction_date</li>
+                    <li>• product_code</li>
+                    <li>• amount</li>
+                    <li>• payment_type</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card">
+                <div class="card-header bg-success text-white">
+                  <strong>Customers Sheet</strong>
+                </div>
+                <div class="card-body">
+                  <ul class="list-unstyled mb-0">
+                    <li>• customer_id</li>
+                    <li>• name</li>
+                    <li>• email</li>
+                    <li>• dob</li>
+                    <li>• address</li>
+                    <li>• created_date</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-4">
+              <div class="card">
+                <div class="card-header bg-info text-white">
+                  <strong>Products Sheet</strong>
+                </div>
+                <div class="card-body">
+                  <ul class="list-unstyled mb-0">
+                    <li>• product_code</li>
+                    <li>• product_name</li>
+                    <li>• category</li>
+                    <li>• unit_price</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

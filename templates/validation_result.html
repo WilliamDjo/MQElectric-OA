@@ -1,0 +1,122 @@
+{% extends "base.html" %} {% block title %}Validation Results{% endblock %} {%
+block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header bg-success text-white">
+        <h3 class="card-title mb-0">✓ File Validation Successful</h3>
+      </div>
+      <div class="card-body">
+        <p class="lead">
+          File <strong>{{ filename }}</strong> has been successfully uploaded
+          and validated.
+        </p>
+
+        <div class="row mb-4">
+          <div class="col-md-4">
+            <div class="text-center">
+              <h4 class="text-primary">{{ result.transactions_count }}</h4>
+              <p class="text-muted">Transactions</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-center">
+              <h4 class="text-success">{{ result.customers_count }}</h4>
+              <p class="text-muted">Customers</p>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-center">
+              <h4 class="text-info">{{ result.products_count }}</h4>
+              <p class="text-muted">Products</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-4">
+            <h5>Sample Transactions</h5>
+            <div class="sample-data">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Customer</th>
+                    <th>Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for transaction in result.transactions_sample %}
+                  <tr>
+                    <td>{{ transaction.transaction_id }}</td>
+                    <td>{{ transaction.customer_id }}</td>
+                    <td>${{ "%.2f"|format(transaction.amount) }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <h5>Sample Customers</h5>
+            <div class="sample-data">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for customer in result.customers_sample %}
+                  <tr>
+                    <td>{{ customer.customer_id }}</td>
+                    <td>{{ customer.name }}</td>
+                    <td>{{ customer.email }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="col-md-4">
+            <h5>Sample Products</h5>
+            <div class="sample-data">
+              <table class="table table-sm">
+                <thead>
+                  <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for product in result.products_sample %}
+                  <tr>
+                    <td>{{ product.product_code }}</td>
+                    <td>{{ product.product_name }}</td>
+                    <td>{{ product.category }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <a href="{{ url_for('index') }}" class="btn btn-primary"
+            >Upload Another File</a
+          >
+          <a href="{{ url_for('view_logs') }}" class="btn btn-secondary"
+            >View Upload Logs</a
+          >
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

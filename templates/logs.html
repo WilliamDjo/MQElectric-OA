@@ -1,0 +1,49 @@
+{% extends "base.html" %} {% block title %}Upload Logs{% endblock %} {% block
+content %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title mb-0">Upload History</h3>
+      </div>
+      <div class="card-body">
+        {% if logs %}
+        <div class="table-responsive">
+          <table class="table table-striped log-table">
+            <thead>
+              <tr>
+                <th>Upload Time</th>
+                <th>Filename</th>
+                <th>Transactions</th>
+                <th>Customers</th>
+                <th>Products</th>
+                <th>File Path</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in logs %}
+              <tr>
+                <td>{{ log[1] }}</td>
+                <td>{{ log[2] }}</td>
+                <td><span class="badge bg-primary">{{ log[3] }}</span></td>
+                <td><span class="badge bg-success">{{ log[4] }}</span></td>
+                <td><span class="badge bg-info">{{ log[5] }}</span></td>
+                <td><small class="text-muted">{{ log[6] }}</small></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted">
+          <p>No uploads recorded yet.</p>
+          <a href="{{ url_for('index') }}" class="btn btn-primary"
+            >Upload Your First File</a
+          >
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
