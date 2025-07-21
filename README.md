@@ -10,10 +10,10 @@ python -m venv venv
 source venv/bin/activate  # or venv\Scripts\activate on Windows
 
 # 2. Install dependencies
-pip install -r requirements.txt
+pip3 install -r requirements.txt
 
 # 3. Run application
-python app.py
+python3 app.py
 
 # 4. Open browser
 # Navigate to http://localhost:5000
