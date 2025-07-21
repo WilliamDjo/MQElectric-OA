@@ -14,26 +14,128 @@ content %}
               <tr>
                 <th>Upload Time</th>
                 <th>Filename</th>
+                <th>Status</th>
                 <th>Transactions</th>
                 <th>Customers</th>
                 <th>Products</th>
-                <th>File Path</th>
+                <th>Revenue</th>
+                <!-- ADDED: Download Actions Column -->
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for log in logs %}
               <tr>
                 <td>{{ log[1] }}</td>
-                <td>{{ log[2] }}</td>
+                <td>
+                  <strong>{{ log[2] }}</strong>
+                  {% if log[7] %}
+                  <br /><small class="text-success">✓ Processed</small>
+                  {% else %}
+                  <br /><small class="text-warning">⚠ Validation Only</small>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if log[7] %}
+                  <span class="badge bg-success">Processed</span>
+                  {% else %}
+                  <span class="badge bg-warning">Validated</span>
+                  {% endif %}
+                </td>
                 <td><span class="badge bg-primary">{{ log[3] }}</span></td>
                 <td><span class="badge bg-success">{{ log[4] }}</span></td>
                 <td><span class="badge bg-info">{{ log[5] }}</span></td>
-                <td><small class="text-muted">{{ log[6] }}</small></td>
+                <td>
+                  {% if log[8] %}
+                  <strong>${{ "{:,.2f}".format(log[8]) }}</strong>
+                  {% else %}
+                  <small class="text-muted">N/A</small>
+                  {% endif %}
+                </td>
+                <!-- ADDED: Download Actions -->
+                <td>
+                  {% if log[7] %}
+                  <!-- Show download options for processed files -->
+                  <div class="btn-group" role="group">
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-primary dropdown-toggle"
+                      data-bs-toggle="dropdown"
+                    >
+                      <i class="fas fa-download"></i> Download
+                    </button>
+                    <ul class="dropdown-menu">
+                      <li>
+                        <a
+                          class="dropdown-item"
+                          href="{{ url_for('download_processed_excel', filename=log[2]) }}"
+                        >
+                          <i class="fas fa-file-excel text-success"></i>
+                          Complete Excel
+                        </a>
+                      </li>
+                      <li>
+                        <a
+                          class="dropdown-item"
+                          href="{{ url_for('download_csv_export', filename=log[2]) }}"
+                        >
+                          <i class="fas fa-file-archive text-info"></i> CSV
+                          Package
+                        </a>
+                      </li>
+                      <li>
+                        <a
+                          class="dropdown-item"
+                          href="{{ url_for('download_geolocation_kml', filename=log[2]) }}"
+                        >
+                          <i class="fas fa-map-marked-alt text-warning"></i>
+                          Location KML
+                        </a>
+                      </li>
+                    </ul>
+                  </div>
+                  {% else %}
+                  <small class="text-muted">Process file first</small>
+                  {% endif %}
+                </td>
               </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
+
+        <!-- ADDED: Download Statistics -->
+        <div class="row mt-4">
+          <div class="col-md-4">
+            <div class="card bg-light">
+              <div class="card-body text-center">
+                <h5>{{ logs|selectattr('7')|list|length }}</h5>
+                <p class="text-muted mb-0">Processed Files</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card bg-light">
+              <div class="card-body text-center">
+                <h5>{{ logs|length }}</h5>
+                <p class="text-muted mb-0">Total Uploads</p>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="card bg-light">
+              <div class="card-body text-center">
+                <h5>
+                  ${{
+                  "{:,.2f}".format(logs|selectattr('8')|map(attribute='8')|sum)
+                  if logs|selectattr('8')|list else 0 }}
+                </h5>
+                <p class="text-muted mb-0">Total Revenue Processed</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {% else %}
         <div class="text-center text-muted">
           <p>No uploads recorded yet.</p>

@@ -1,12 +1,30 @@
-from flask import Flask, request, render_template, flash, redirect, url_for, jsonify
+from flask import (
+    Flask,
+    request,
+    render_template,
+    flash,
+    redirect,
+    url_for,
+    jsonify,
+    send_file,
+)
 import pandas as pd
 import os
 from werkzeug.utils import secure_filename
 import sqlite3
 from datetime import datetime
 import re
+import tempfile
+import zipfile
 
+# Import our processing functions
 from data_processing import process_data, generate_insights
+from download import (
+    create_processed_excel_file,
+    create_csv_exports,
+    create_geolocation_kml,
+    add_download_routes_to_app,
+)
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "your-secret-key-here"
@@ -279,7 +297,6 @@ def upload_file():
                 flash(
                     "File uploaded, validated, and processed successfully!", "success"
                 )
-
                 return render_template(
                     "processing_result.html",
                     filename=filename,
@@ -324,4 +341,8 @@ def view_logs():
 
 if __name__ == "__main__":
     init_db()
+
+    # Add download routes to the app
+    add_download_routes_to_app(app)
+
     app.run(debug=True)
