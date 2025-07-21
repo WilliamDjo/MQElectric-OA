@@ -3,7 +3,11 @@ import numpy as np
 from datetime import datetime
 import re
 
-# from app import parse_customer_data --> can't do this due to circular import
+# Import geolocation functionality
+from geolocation_service import (
+    add_geolocation_to_customers,
+    generate_geolocation_insights,
+)
 
 
 def convert_excel_date(excel_date):
@@ -18,6 +22,108 @@ def convert_excel_date(excel_date):
         return pd.to_datetime(excel_date)
     except:
         return None
+
+
+def process_data(file_path, use_geolocation=True, google_api_key=None):
+    """
+    Main function to process Excel data and perform all required analyses
+    Returns a dictionary with all processed results
+    """
+
+    # Read all sheets
+    transactions_df = pd.read_excel(file_path, sheet_name="Transactions")
+    products_df = pd.read_excel(file_path, sheet_name="Products")
+    customers_raw = pd.read_excel(file_path, sheet_name="Customers")
+
+    # Parse customers data from the special format
+    customers_df = parse_customer_data(customers_raw.iloc[:, 0])
+
+    # Convert date columns
+    transactions_df["transaction_date"] = pd.to_datetime(
+        transactions_df["transaction_date"], origin="1899-12-30", unit="D"
+    )
+    customers_df["created_date"] = customers_df["created_date"].apply(
+        convert_excel_date
+    )
+    customers_df["dob"] = pd.to_datetime(customers_df["dob"])
+
+    # Ensure amount is numeric
+    transactions_df["amount"] = pd.to_numeric(
+        transactions_df["amount"], errors="coerce"
+    )
+
+    # Step 4: Add geolocation data to customers
+    geolocation_insights = None
+    if use_geolocation:
+        print("Adding geolocation data to customer addresses...")
+        customers_df = add_geolocation_to_customers(
+            customers_df,
+            use_google_api=bool(google_api_key),
+            google_api_key=google_api_key,
+        )
+        geolocation_insights = generate_geolocation_insights(customers_df)
+
+    # Step 3a: Detect customer address changes and keep history
+    address_history = detect_address_changes(customers_df, transactions_df)
+
+    # Step 3b: Calculate total transaction amount for each customer by product category
+    customer_category_totals = calculate_customer_category_totals(
+        transactions_df, products_df
+    )
+
+    # Step 3c: Identify top spender in each category
+    top_spenders_by_category = identify_top_spenders_by_category(
+        customer_category_totals
+    )
+
+    # Step 3d: Rank all customers by total purchase value
+    customer_rankings = rank_customers_by_total_value(transactions_df)
+
+    return {
+        "processed_data": {
+            "transactions_df": transactions_df,
+            "customers_df": customers_df,  # This now includes geolocation columns
+            "products_df": products_df,
+        },
+        "analysis_results": {
+            "address_history": address_history,
+            "customer_category_totals": customer_category_totals,
+            "top_spenders_by_category": top_spenders_by_category,
+            "customer_rankings": customer_rankings,
+            "geolocation_insights": geolocation_insights,  # New: Step 4 results
+        },
+        "summary_stats": {
+            "total_customers": len(customers_df),
+            "total_transactions": len(transactions_df),
+            "total_revenue": transactions_df["amount"].sum(),
+            "date_range": {
+                "first_transaction": transactions_df["transaction_date"].min(),
+                "last_transaction": transactions_df["transaction_date"].max(),
+            },
+            "customers_with_address_changes": len(address_history),
+            "product_categories": products_df["category"].nunique(),
+            "geocoded_customers": (
+                customers_df["latitude"].notna().sum()
+                if "latitude" in customers_df
+                else 0
+            ),
+            "geocoding_success_rate": (
+                (customers_df["latitude"].notna().sum() / len(customers_df) * 100)
+                if "latitude" in customers_df
+                else 0
+            ),
+        },
+        # NEW: Add sample data for templates
+        "sample_data": {
+            "geocoded_customers": (
+                customers_df[customers_df["latitude"].notna()]
+                .head(10)
+                .to_dict("records")
+                if "latitude" in customers_df and customers_df["latitude"].notna().any()
+                else []
+            )
+        },
+    }
 
 
 def parse_customer_data(raw_data):
@@ -48,76 +154,6 @@ def parse_customer_data(raw_data):
                 continue
 
     return pd.DataFrame(customers)
-
-
-def process_data(file_path):
-    """
-    Main function to process Excel data and perform all required analyses
-    Returns a dictionary with all processed results
-    """
-
-    # Read all sheets
-    transactions_df = pd.read_excel(file_path, sheet_name="Transactions")
-    products_df = pd.read_excel(file_path, sheet_name="Products")
-    customers_raw = pd.read_excel(file_path, sheet_name="Customers")
-
-    # Parse customers data from the special format
-    customers_df = parse_customer_data(customers_raw.iloc[:, 0])
-
-    # Convert date columns
-    transactions_df["transaction_date"] = pd.to_datetime(
-        transactions_df["transaction_date"], origin="1899-12-30", unit="D"
-    )
-    customers_df["created_date"] = customers_df["created_date"].apply(
-        convert_excel_date
-    )
-    customers_df["dob"] = pd.to_datetime(customers_df["dob"])
-
-    # Ensure amount is numeric
-    transactions_df["amount"] = pd.to_numeric(
-        transactions_df["amount"], errors="coerce"
-    )
-
-    # Step 3a: Detect customer address changes and keep history
-    address_history = detect_address_changes(customers_df, transactions_df)
-
-    # Step 3b: Calculate total transaction amount for each customer by product category
-    customer_category_totals = calculate_customer_category_totals(
-        transactions_df, products_df
-    )
-
-    # Step 3c: Identify top spender in each category
-    top_spenders_by_category = identify_top_spenders_by_category(
-        customer_category_totals
-    )
-
-    # Step 3d: Rank all customers by total purchase value
-    customer_rankings = rank_customers_by_total_value(transactions_df)
-
-    return {
-        "processed_data": {
-            "transactions_df": transactions_df,
-            "customers_df": customers_df,
-            "products_df": products_df,
-        },
-        "analysis_results": {
-            "address_history": address_history,
-            "customer_category_totals": customer_category_totals,
-            "top_spenders_by_category": top_spenders_by_category,
-            "customer_rankings": customer_rankings,
-        },
-        "summary_stats": {
-            "total_customers": len(customers_df),
-            "total_transactions": len(transactions_df),
-            "total_revenue": transactions_df["amount"].sum(),
-            "date_range": {
-                "first_transaction": transactions_df["transaction_date"].min(),
-                "last_transaction": transactions_df["transaction_date"].max(),
-            },
-            "customers_with_address_changes": len(address_history),
-            "product_categories": products_df["category"].nunique(),
-        },
-    }
 
 
 def detect_address_changes(customers_df, transactions_df):

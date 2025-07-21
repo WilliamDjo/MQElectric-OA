@@ -41,10 +41,17 @@ block content %}
           </div>
           <div class="col-md-3">
             <div class="text-center">
+              {% if processing.summary_stats.geocoded_customers %}
+              <h4 class="text-warning">
+                {{ processing.summary_stats.geocoded_customers }}
+              </h4>
+              <p class="text-muted">Geocoded Customers</p>
+              {% else %}
               <h4 class="text-warning">
                 {{ processing.summary_stats.product_categories }}
               </h4>
               <p class="text-muted">Product Categories</p>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -91,6 +98,18 @@ block content %}
           role="tab"
         >
           Address History
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="geolocation-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#geolocation"
+          type="button"
+          role="tab"
+        >
+          Geolocation
         </button>
       </li>
       <li class="nav-item" role="presentation">
@@ -436,6 +455,385 @@ block content %}
         </div>
       </div>
 
+      <!-- Geolocation Tab -->
+      <div class="tab-pane fade" id="geolocation" role="tabpanel">
+        <div class="card">
+          <div class="card-body">
+            {% if processing.analysis_results.geolocation_insights %}
+            <h5 class="card-title">Customer Geolocation Analysis</h5>
+
+            <!-- Geolocation Summary Stats -->
+            <div class="row mb-4">
+              <div class="col-md-3">
+                <div class="text-center">
+                  <h4 class="text-success">
+                    {{
+                    processing.analysis_results.geolocation_insights.geocoding_stats.geocoded_customers
+                    }}
+                  </h4>
+                  <p class="text-muted">Geocoded Customers</p>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-center">
+                  <h4 class="text-info">
+                    {{
+                    "{:.1f}".format(processing.analysis_results.geolocation_insights.geocoding_stats.geocoding_success_rate)
+                    }}%
+                  </h4>
+                  <p class="text-muted">Success Rate</p>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-center">
+                  <h4 class="text-warning">
+                    {{
+                    processing.analysis_results.geolocation_insights.geocoding_stats.cached_results
+                    }}
+                  </h4>
+                  <p class="text-muted">Cached Results</p>
+                </div>
+              </div>
+              <div class="col-md-3">
+                <div class="text-center">
+                  <h4 class="text-primary">
+                    {{
+                    processing.analysis_results.geolocation_insights.geocoding_stats.geocoded_customers
+                    -
+                    processing.analysis_results.geolocation_insights.geocoding_stats.cached_results
+                    }}
+                  </h4>
+                  <p class="text-muted">New API Calls</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Geographic Center -->
+            <div class="row mb-4">
+              <div class="col-md-6">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6>Geographic Center</h6>
+                    <p>
+                      <strong>Latitude:</strong> {{
+                      "{:.6f}".format(processing.analysis_results.geolocation_insights.geographic_distribution.center_latitude)
+                      }}
+                    </p>
+                    <p>
+                      <strong>Longitude:</strong> {{
+                      "{:.6f}".format(processing.analysis_results.geolocation_insights.geographic_distribution.center_longitude)
+                      }}
+                    </p>
+                    <p>
+                      <small class="text-muted"
+                        >Average center point of all customer locations</small
+                      >
+                    </p>
+
+                    <!-- ADD: Google Maps Link -->
+                    <a
+                      href="https://www.google.com/maps?q={{ processing.analysis_results.geolocation_insights.geographic_distribution.center_latitude }},{{ processing.analysis_results.geolocation_insights.geographic_distribution.center_longitude }}"
+                      target="_blank"
+                      class="btn btn-sm btn-outline-primary"
+                    >
+                      <i class="fas fa-external-link-alt"></i> View on Google
+                      Maps
+                    </a>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="card bg-light">
+                  <div class="card-body">
+                    <h6>Geographic Spread</h6>
+                    <p>
+                      <strong>Lat Range:</strong> {{
+                      "{:.4f}".format(processing.analysis_results.geolocation_insights.geographic_distribution.latitude_range.min)
+                      }} to {{
+                      "{:.4f}".format(processing.analysis_results.geolocation_insights.geographic_distribution.latitude_range.max)
+                      }}
+                    </p>
+                    <p>
+                      <strong>Lng Range:</strong> {{
+                      "{:.4f}".format(processing.analysis_results.geolocation_insights.geographic_distribution.longitude_range.min)
+                      }} to {{
+                      "{:.4f}".format(processing.analysis_results.geolocation_insights.geographic_distribution.longitude_range.max)
+                      }}
+                    </p>
+                    <p>
+                      <small class="text-muted"
+                        >Geographic boundaries of customer base</small
+                      >
+                    </p>
+
+                    <!-- ADD: Coverage Area Calculation -->
+                    {% set lat_diff =
+                    processing.analysis_results.geolocation_insights.geographic_distribution.latitude_range.max
+                    -
+                    processing.analysis_results.geolocation_insights.geographic_distribution.latitude_range.min
+                    %} {% set lng_diff =
+                    processing.analysis_results.geolocation_insights.geographic_distribution.longitude_range.max
+                    -
+                    processing.analysis_results.geolocation_insights.geographic_distribution.longitude_range.min
+                    %}
+                    <p>
+                      <strong>Coverage Area:</strong> ~{{
+                      "{:.0f}".format(lat_diff * lng_diff * 12100) }} km²
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Provider Statistics -->
+            {% if
+            processing.analysis_results.geolocation_insights.provider_stats %}
+            <h6>Geocoding Provider Statistics</h6>
+            <div class="row mb-4">
+              {% for provider, count in
+              processing.analysis_results.geolocation_insights.provider_stats.items()
+              %}
+              <div class="col-md-4 mb-2">
+                <div class="card">
+                  <div class="card-body text-center py-2">
+                    {% if provider == 'nominatim' %}
+                    <i class="fas fa-map text-info"></i>
+                    <strong>OpenStreetMap</strong>
+                    {% elif provider == 'google' %}
+                    <i class="fab fa-google text-success"></i>
+                    <strong>Google Maps</strong>
+                    {% else %}
+                    <i class="fas fa-globe text-secondary"></i>
+                    <strong>{{ provider|title }}</strong>
+                    {% endif %}
+                    <br />
+                    <span class="badge bg-primary">{{ count }} customers</span>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Interactive Map Placeholder -->
+            <div class="card mt-4">
+              <div
+                class="card-header d-flex justify-content-between align-items-center"
+              >
+                <h6 class="mb-0">Customer Location Map</h6>
+                <div class="btn-group">
+                  <button
+                    class="btn btn-sm btn-outline-primary"
+                    onclick="showMapInstructions()"
+                  >
+                    <i class="fas fa-info-circle"></i> Implementation Guide
+                  </button>
+                  <button
+                    class="btn btn-sm btn-outline-success"
+                    onclick="downloadGeocodedData()"
+                  >
+                    <i class="fas fa-download"></i> Download KML
+                  </button>
+                </div>
+              </div>
+              <div class="card-body">
+                <div
+                  id="customerMap"
+                  style="
+                    height: 400px;
+                    background-color: #f8f9fa;
+                    border: 1px dashed #dee2e6;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-direction: column;
+                  "
+                >
+                  <i class="fas fa-map-marked-alt fa-3x text-muted mb-3"></i>
+                  <h5 class="text-muted">Interactive Map Placeholder</h5>
+                  <p class="text-muted text-center">
+                    {{
+                    processing.analysis_results.geolocation_insights.geocoding_stats.geocoded_customers
+                    }} customer locations ready to display<br />
+                    <small
+                      >Center: {{
+                      "{:.4f}".format(processing.analysis_results.geolocation_insights.geographic_distribution.center_latitude)
+                      }}, {{
+                      "{:.4f}".format(processing.analysis_results.geolocation_insights.geographic_distribution.center_longitude)
+                      }}</small
+                    >
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- FIXED: Sample Geocoded Customers with Real Data Structure -->
+            <div class="row mt-4">
+              <div class="col-md-8">
+                <h6>Sample Geocoded Customer Locations</h6>
+                <div class="table-responsive">
+                  <table class="table table-sm">
+                    <thead>
+                      <tr>
+                        <th>Customer ID</th>
+                        <th>City/Area</th>
+                        <th>Latitude</th>
+                        <th>Longitude</th>
+                        <th>Provider</th>
+                        <th>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% if processing.sample_data.geocoded_customers %} {% for
+                      customer in processing.sample_data.geocoded_customers %}
+                      <tr>
+                        <td>{{ customer.customer_id }}</td>
+                        <td>
+                          {% if customer.normalized_address %} {{
+                          customer.normalized_address.split(',')[1]|trim if ','
+                          in customer.normalized_address else
+                          customer.address.split(',')[1]|trim if ',' in
+                          customer.address else 'Unknown' }} {% else %} {{
+                          customer.address.split(',')[1]|trim if ',' in
+                          customer.address else 'Unknown' }} {% endif %}
+                        </td>
+                        <td>{{ "{:.4f}".format(customer.latitude) }}</td>
+                        <td>{{ "{:.4f}".format(customer.longitude) }}</td>
+                        <td>
+                          {% if customer.geo_provider == 'nominatim' %}
+                          <span class="badge bg-info">OpenStreetMap</span>
+                          {% elif customer.geo_provider == 'google' %}
+                          <span class="badge bg-success">Google Maps</span>
+                          {% else %}
+                          <span class="badge bg-secondary"
+                            >{{ customer.geo_provider|title }}</span
+                          >
+                          {% endif %}
+                        </td>
+                        <td>
+                          <a
+                            href="https://www.google.com/maps?q={{ customer.latitude }},{{ customer.longitude }}"
+                            target="_blank"
+                            class="btn btn-xs btn-outline-primary"
+                            title="View on Google Maps"
+                          >
+                            <i class="fas fa-map-pin"></i>
+                          </a>
+                        </td>
+                      </tr>
+                      {% endfor %} {% if
+                      processing.sample_data.geocoded_customers|length <
+                      processing.analysis_results.geolocation_insights.geocoding_stats.geocoded_customers
+                      %}
+                      <tr class="table-light">
+                        <td colspan="6" class="text-center">
+                          <small class="text-muted">
+                            Showing {{
+                            processing.sample_data.geocoded_customers|length }}
+                            of {{
+                            processing.analysis_results.geolocation_insights.geocoding_stats.geocoded_customers
+                            }} geocoded customers
+                            <button
+                              class="btn btn-xs btn-outline-primary ms-2"
+                              onclick="downloadGeocodedCustomers()"
+                            >
+                              <i class="fas fa-download"></i> Download All
+                            </button>
+                          </small>
+                        </td>
+                      </tr>
+                      {% endif %} {% else %}
+                      <tr class="table-info">
+                        <td colspan="6" class="text-center">
+                          <i class="fas fa-info-circle"></i>
+                          <strong
+                            >No geocoded customer data available to
+                            display.</strong
+                          ><br />
+                          <small
+                            >This may happen if geolocation was not enabled or
+                            if geocoding failed for all addresses.</small
+                          >
+                        </td>
+                      </tr>
+                      {% endif %}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              <div class="col-md-4">
+                <h6>Geocoding Quality</h6>
+                <div class="card bg-light">
+                  <div class="card-body">
+                    {% if
+                    processing.analysis_results.geolocation_insights.confidence_stats
+                    %}
+                    <p>
+                      <strong>Avg Confidence:</strong> {{
+                      "{:.1%}".format(processing.analysis_results.geolocation_insights.confidence_stats.average_confidence)
+                      }}
+                    </p>
+                    <p>
+                      <strong>High Confidence:</strong> {{
+                      processing.analysis_results.geolocation_insights.confidence_stats.high_confidence_count
+                      }} addresses
+                    </p>
+                    {% endif %}
+                    <p>
+                      <strong>Total Geocoded:</strong> {{
+                      processing.analysis_results.geolocation_insights.geocoding_stats.geocoded_customers
+                      }}/{{
+                      processing.analysis_results.geolocation_insights.geocoding_stats.total_customers
+                      }}
+                    </p>
+
+                    <!-- Action Buttons -->
+                    <div class="mt-3">
+                      <button
+                        class="btn btn-sm btn-outline-primary w-100 mb-2"
+                        onclick="downloadGeocodedCustomers()"
+                      >
+                        <i class="fas fa-download"></i> Export Geocoded Data
+                      </button>
+                      <button
+                        class="btn btn-sm btn-outline-info w-100"
+                        onclick="showGeolocationSettings()"
+                      >
+                        <i class="fas fa-cog"></i> Geocoding Settings
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {% else %}
+            <!-- Geolocation Not Enabled Message -->
+            <div class="alert alert-info">
+              <h5>
+                <i class="fas fa-info-circle"></i> Geolocation Not Enabled
+              </h5>
+              <p>
+                Geolocation processing was not enabled for this upload. To add
+                latitude and longitude coordinates to customer addresses:
+              </p>
+              <ol>
+                <li>Re-upload your file</li>
+                <li>Check the "Enable Geolocation" option</li>
+                <li>Wait for processing to complete</li>
+              </ol>
+              <p class="mb-0">
+                <small class="text-muted"
+                  >Geolocation adds geographic coordinates using free
+                  OpenStreetMap or Google Maps APIs.</small
+                >
+              </p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
       <!-- Business Insights Tab -->
       <div class="tab-pane fade" id="insights" role="tabpanel">
         <div class="card">
@@ -636,6 +1034,78 @@ block content %}
     a.click();
 
     window.URL.revokeObjectURL(url);
+  }
+
+  function downloadGeocodedData() {
+    alert(
+      "KML download would export customer locations for Google Earth/Maps viewing."
+    );
+  }
+
+  function downloadGeocodedCustomers() {
+    // Generate CSV with sample data visible in the table
+    const rows = [
+      [
+        "Customer ID",
+        "City/Area",
+        "Latitude",
+        "Longitude",
+        "Provider",
+        "Address",
+      ],
+    ];
+
+    // Get data from the geocoded customers table
+    const table = document.querySelector("#geolocation .table tbody");
+    const tableRows = table.getElementsByTagName("tr");
+
+    for (let i = 0; i < tableRows.length; i++) {
+      const cells = tableRows[i].getElementsByTagName("td");
+      if (
+        cells.length === 6 &&
+        !tableRows[i].classList.contains("table-light") &&
+        !tableRows[i].classList.contains("table-info")
+      ) {
+        rows.push([
+          cells[0].textContent.trim(),
+          cells[1].textContent.trim(),
+          cells[2].textContent.trim(),
+          cells[3].textContent.trim(),
+          cells[4].textContent.trim(),
+          "Full address in complete dataset",
+        ]);
+      }
+    }
+
+    if (rows.length > 1) {
+      // Create CSV content
+      const csvContent = rows
+        .map((row) => row.map((cell) => `"${cell}"`).join(","))
+        .join("\n");
+
+      // Create and download file
+      const blob = new Blob([csvContent], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "geocoded_customers_sample_{{ filename }}.csv";
+      a.click();
+
+      window.URL.revokeObjectURL(url);
+    } else {
+      alert("No geocoded customer data available to download.");
+    }
+  }
+
+  function showGeolocationSettings() {
+    alert(
+      "Settings would show:\n- Geocoding provider preferences\n- Cache statistics\n- API usage limits\n- Quality thresholds"
+    );
+  }
+
+  function showOnMap(lat, lng) {
+    window.open(`https://www.google.com/maps?q=${lat},${lng}`, "_blank");
   }
 
   function downloadProcessedData() {

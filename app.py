@@ -60,7 +60,7 @@ def init_db():
 
 
 def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ["xlsx"]
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ["xlsx", "xls"]
 
 
 def parse_customer_data(raw_data):
@@ -190,25 +190,6 @@ def log_upload(filename, file_path, validation_result, processing_result=None):
     conn = sqlite3.connect("upload_logs.db")
     cursor = conn.cursor()
 
-    # Update table schema to include processing status
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS upload_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            upload_timestamp TEXT NOT NULL,
-            filename TEXT NOT NULL,
-            transactions_count INTEGER,
-            customers_count INTEGER,
-            products_count INTEGER,
-            file_path TEXT NOT NULL,
-            processed BOOLEAN DEFAULT FALSE,
-            total_revenue REAL,
-            top_customer_id TEXT,
-            processing_timestamp TEXT
-        )
-    """
-    )
-
     processed = processing_result is not None
     total_revenue = (
         processing_result["summary_stats"]["total_revenue"] if processed else None
@@ -277,9 +258,19 @@ def upload_file():
         is_valid, validation_result = validate_excel_structure(file_path)
 
         if is_valid:
-            # Process the data (Step 3)
+            # Process the data (Step 3 & 4)
             try:
-                processing_result = process_data(file_path)
+                # Check if user wants geolocation (could be a form parameter)
+                use_geolocation = request.form.get("enable_geolocation", "on") == "on"
+                google_api_key = os.environ.get(
+                    "GOOGLE_MAPS_API_KEY"
+                )  # Set as environment variable
+
+                processing_result = process_data(
+                    file_path,
+                    use_geolocation=use_geolocation,
+                    google_api_key=google_api_key,
+                )
                 insights = generate_insights(processing_result)
 
                 # Log the successful upload with processing results
@@ -288,6 +279,7 @@ def upload_file():
                 flash(
                     "File uploaded, validated, and processed successfully!", "success"
                 )
+
                 return render_template(
                     "processing_result.html",
                     filename=filename,
