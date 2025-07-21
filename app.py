@@ -6,6 +6,8 @@ import sqlite3
 from datetime import datetime
 import re
 
+from data_processing import process_data, generate_insights
+
 app = Flask(__name__)
 app.config["SECRET_KEY"] = "your-secret-key-here"
 app.config["UPLOAD_FOLDER"] = "uploads"
@@ -19,6 +21,8 @@ os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 def init_db():
     conn = sqlite3.connect("upload_logs.db")
     cursor = conn.cursor()
+
+    # Create table with new schema
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS upload_logs (
@@ -28,10 +32,29 @@ def init_db():
             transactions_count INTEGER,
             customers_count INTEGER,
             products_count INTEGER,
-            file_path TEXT NOT NULL
+            file_path TEXT NOT NULL,
+            processed BOOLEAN DEFAULT FALSE,
+            total_revenue REAL,
+            top_customer_id TEXT,
+            processing_timestamp TEXT
         )
-        """
+    """
     )
+
+    # Check if new columns exist, if not add them
+    try:
+        cursor.execute("SELECT processed FROM upload_logs LIMIT 1")
+    except sqlite3.OperationalError:
+        # Add missing columns
+        print("Updating database schema...")
+        cursor.execute(
+            "ALTER TABLE upload_logs ADD COLUMN processed BOOLEAN DEFAULT FALSE"
+        )
+        cursor.execute("ALTER TABLE upload_logs ADD COLUMN total_revenue REAL")
+        cursor.execute("ALTER TABLE upload_logs ADD COLUMN top_customer_id TEXT")
+        cursor.execute("ALTER TABLE upload_logs ADD COLUMN processing_timestamp TEXT")
+        print("Database schema updated successfully!")
+
     conn.commit()
     conn.close()
 
@@ -162,16 +185,51 @@ def validate_excel_structure(file_path):
         return False, f"Error reading file: {str(e)}"
 
 
-def log_upload(filename, file_path, validation_result):
+def log_upload(filename, file_path, validation_result, processing_result=None):
     """Log upload details to SQLite database"""
     conn = sqlite3.connect("upload_logs.db")
     cursor = conn.cursor()
 
+    # Update table schema to include processing status
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS upload_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            upload_timestamp TEXT NOT NULL,
+            filename TEXT NOT NULL,
+            transactions_count INTEGER,
+            customers_count INTEGER,
+            products_count INTEGER,
+            file_path TEXT NOT NULL,
+            processed BOOLEAN DEFAULT FALSE,
+            total_revenue REAL,
+            top_customer_id TEXT,
+            processing_timestamp TEXT
+        )
+    """
+    )
+
+    processed = processing_result is not None
+    total_revenue = (
+        processing_result["summary_stats"]["total_revenue"] if processed else None
+    )
+    top_customer = None
+    if (
+        processed
+        and processing_result["analysis_results"]["customer_rankings"][
+            "top_10_customers"
+        ]
+    ):
+        top_customer = processing_result["analysis_results"]["customer_rankings"][
+            "top_10_customers"
+        ][0]["customer_id"]
+
     cursor.execute(
         """
         INSERT INTO upload_logs 
-        (upload_timestamp, filename, transactions_count, customers_count, products_count, file_path)
-        VALUES (?, ?, ?, ?, ?, ?)
+        (upload_timestamp, filename, transactions_count, customers_count, products_count, 
+         file_path, processed, total_revenue, top_customer_id, processing_timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             datetime.now().isoformat(),
@@ -180,6 +238,10 @@ def log_upload(filename, file_path, validation_result):
             validation_result["customers_count"],
             validation_result["products_count"],
             file_path,
+            processed,
+            total_revenue,
+            top_customer,
+            datetime.now().isoformat() if processed else None,
         ),
     )
 
@@ -215,12 +277,33 @@ def upload_file():
         is_valid, validation_result = validate_excel_structure(file_path)
 
         if is_valid:
-            # Log the successful upload
-            log_upload(filename, file_path, validation_result)
-            flash("File uploaded and validated successfully!", "success")
-            return render_template(
-                "validation_result.html", filename=filename, result=validation_result
-            )
+            # Process the data (Step 3)
+            try:
+                processing_result = process_data(file_path)
+                insights = generate_insights(processing_result)
+
+                # Log the successful upload with processing results
+                log_upload(filename, file_path, validation_result, processing_result)
+
+                flash(
+                    "File uploaded, validated, and processed successfully!", "success"
+                )
+                return render_template(
+                    "processing_result.html",
+                    filename=filename,
+                    validation=validation_result,
+                    processing=processing_result,
+                    insights=insights,
+                )
+            except Exception as e:
+                # Log upload without processing results
+                log_upload(filename, file_path, validation_result)
+                flash(f"File validated but processing failed: {str(e)}", "warning")
+                return render_template(
+                    "validation_result.html",
+                    filename=filename,
+                    result=validation_result,
+                )
         else:
             # Remove the invalid file
             os.remove(file_path)
